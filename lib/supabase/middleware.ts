@@ -13,86 +13,65 @@ function hasSupabaseConfig() {
 }
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  try {
+    let supabaseResponse = NextResponse.next({ request });
 
-  // Allow local UI boot without real Supabase credentials.
-  if (!hasSupabaseConfig()) {
-    return supabaseResponse;
-  }
+    if (!hasSupabaseConfig()) {
+      return supabaseResponse;
+    }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(
-          cookiesToSet: {
-            name: string;
-            value: string;
-            options?: Record<string, unknown>;
-          }[],
-        ) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
-          });
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => {
+              request.cookies.set(name, value);
+            });
+            supabaseResponse = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) => {
+              supabaseResponse.cookies.set(name, value, options);
+            });
+          },
         },
       },
-    },
-  );
+    );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser().catch(() => ({
-    data: { user: null },
-  }));
+    // Refresh session; never throw out of middleware.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  // If auth call somehow returns undefined shape, don't hang/crash.
-  const safeUser = user ?? null;
+    const pathname = request.nextUrl.pathname;
+    const isAuthRoute =
+      pathname.startsWith("/login") || pathname.startsWith("/register");
+    const isAdminRoute = pathname.startsWith("/admin");
+    const isProtectedCustomer =
+      pathname.startsWith("/bookings") || pathname.startsWith("/account");
 
-  const pathname = request.nextUrl.pathname;
-  const isAuthRoute =
-    pathname.startsWith("/login") || pathname.startsWith("/register");
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isProtectedCustomer =
-    pathname.startsWith("/bookings") || pathname.startsWith("/account");
+    if (!user && (isAdminRoute || isProtectedCustomer)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
 
-  if (!safeUser && (isAdminRoute || isProtectedCustomer)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (safeUser && isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  if (safeUser && isAdminRoute) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", safeUser.id)
-      .maybeSingle();
-
-    if (!profile || profile.role !== "admin") {
+    if (user && isAuthRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
-  }
 
-  return supabaseResponse;
+    // Admin role is enforced in app/admin/layout.tsx (server).
+    // Avoid extra DB calls in Edge middleware that can 500 the whole site.
+
+    return supabaseResponse;
+  } catch {
+    // Fail open so a bad env key / Edge auth glitch doesn't take down the app.
+    return NextResponse.next({ request });
+  }
 }
