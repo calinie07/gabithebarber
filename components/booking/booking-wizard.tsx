@@ -25,10 +25,12 @@ function DayChip({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const label = formatBusinessDate(
-    businessLocalToUtc(dateStr, "12:00"),
-    "EEE d",
-  );
+  let label = dateStr;
+  try {
+    label = formatBusinessDate(businessLocalToUtc(dateStr, "12:00"), "EEE d");
+  } catch {
+    // keep raw dateStr
+  }
 
   return (
     <button
