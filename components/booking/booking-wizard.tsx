@@ -12,7 +12,7 @@ import {
   formatBusinessDate,
   upcomingBusinessDates,
 } from "@/lib/utils/datetime";
-import type { SlotDto } from "@/lib/availability/actions";
+import type { SlotDto } from "@/lib/types/slots";
 
 type Step = "service" | "day" | "time" | "review" | "done";
 

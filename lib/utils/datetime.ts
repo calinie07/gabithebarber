@@ -1,25 +1,13 @@
 /**
  * Business timezone helpers (Europe/Bucharest).
- *
- * Store timestamptz in Postgres; convert only at UI / slot edges.
+ * Uses Intl only — avoids date-fns / date-fns-tz runtime mismatches on Vercel.
  */
-
-import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
-import {
-  addDays,
-  addMinutes,
-  format,
-  isValid,
-  parse,
-  startOfDay,
-  startOfWeek,
-} from "date-fns";
 
 export const BUSINESS_TIMEZONE =
   process.env.NEXT_PUBLIC_BUSINESS_TIMEZONE ?? "Europe/Bucharest";
 
-function assertValidDate(date: Date, context: string): Date {
-  if (!isValid(date)) {
+function assertValid(date: Date, context: string): Date {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     throw new Error(`Invalid date (${context})`);
   }
   return date;
@@ -27,62 +15,127 @@ function assertValidDate(date: Date, context: string): Date {
 
 /** Normalize "09:00:00" / "9:00" → "09:00" */
 export function normalizeClock(time: string): string {
-  const match = time.trim().match(/^(\d{1,2}):(\d{2})/);
+  const match = String(time).trim().match(/^(\d{1,2}):(\d{2})/);
   if (!match) {
     throw new Error(`Invalid clock time: ${time}`);
   }
   return `${match[1].padStart(2, "0")}:${match[2]}`;
 }
 
+function partsInZone(date: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const map: Record<string, string> = {};
+  for (const p of fmt.formatToParts(date)) {
+    if (p.type !== "literal") map[p.type] = p.value;
+  }
+  return map;
+}
+
 /** YYYY-MM-DD in business timezone */
 export function toBusinessDateString(date: Date): string {
-  return formatInTimeZone(
-    assertValidDate(date, "toBusinessDateString"),
-    BUSINESS_TIMEZONE,
-    "yyyy-MM-dd",
-  );
+  const p = partsInZone(assertValid(date, "toBusinessDateString"), BUSINESS_TIMEZONE);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
 /** HH:mm in business timezone */
 export function toBusinessTimeString(date: Date): string {
-  return formatInTimeZone(
-    assertValidDate(date, "toBusinessTimeString"),
-    BUSINESS_TIMEZONE,
-    "HH:mm",
-  );
+  const p = partsInZone(assertValid(date, "toBusinessTimeString"), BUSINESS_TIMEZONE);
+  return `${p.hour}:${p.minute}`;
 }
 
-/** Human-friendly date in business TZ */
 export function formatBusinessDate(date: Date, pattern = "EEE d MMM"): string {
-  return formatInTimeZone(
-    assertValidDate(date, "formatBusinessDate"),
-    BUSINESS_TIMEZONE,
-    pattern,
-  );
+  assertValid(date, "formatBusinessDate");
+  // Simple pattern subset used by the app
+  if (pattern === "EEE d") {
+    return new Intl.DateTimeFormat("ro-RO", {
+      timeZone: BUSINESS_TIMEZONE,
+      weekday: "short",
+      day: "numeric",
+    }).format(date);
+  }
+  if (pattern === "EEEE d MMM" || pattern === "EEEE d MMMM") {
+    return new Intl.DateTimeFormat("ro-RO", {
+      timeZone: BUSINESS_TIMEZONE,
+      weekday: "long",
+      day: "numeric",
+      month: pattern.endsWith("MMMM") ? "long" : "short",
+    }).format(date);
+  }
+  if (pattern === "d MMM yyyy") {
+    return new Intl.DateTimeFormat("ro-RO", {
+      timeZone: BUSINESS_TIMEZONE,
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }
+  if (pattern === "d MMM") {
+    return new Intl.DateTimeFormat("ro-RO", {
+      timeZone: BUSINESS_TIMEZONE,
+      day: "numeric",
+      month: "short",
+    }).format(date);
+  }
+  if (pattern === "EEE d MMM") {
+    return new Intl.DateTimeFormat("ro-RO", {
+      timeZone: BUSINESS_TIMEZONE,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat("ro-RO", {
+    timeZone: BUSINESS_TIMEZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(date);
 }
 
 export function formatBusinessDateTime(date: Date): string {
-  return formatInTimeZone(
-    assertValidDate(date, "formatBusinessDateTime"),
-    BUSINESS_TIMEZONE,
-    "EEE d MMM, HH:mm",
-  );
+  assertValid(date, "formatBusinessDateTime");
+  return new Intl.DateTimeFormat("ro-RO", {
+    timeZone: BUSINESS_TIMEZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
 }
 
 /**
- * Build a UTC Date for a wall-clock time on a business calendar day.
- * Example: ("2026-09-14", "09:00") → 09:00 Europe/Bucharest that day.
+ * UTC instant for a wall-clock time on a calendar day in BUSINESS_TIMEZONE.
  */
 export function businessLocalToUtc(dateStr: string, timeStr: string): Date {
   const clock = normalizeClock(timeStr);
-  const local = parse(
-    `${dateStr} ${clock}`,
-    "yyyy-MM-dd HH:mm",
-    new Date(2000, 0, 1),
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = clock.split(":").map(Number);
+
+  // Guess UTC by treating the wall time as UTC, then correct by zone offset.
+  let guess = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+  const p = partsInZone(guess, BUSINESS_TIMEZONE);
+  const asZone = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second),
   );
-  assertValidDate(local, `parse ${dateStr} ${clock}`);
-  const utc = fromZonedTime(local, BUSINESS_TIMEZONE);
-  return assertValidDate(utc, `fromZonedTime ${dateStr} ${clock}`);
+  const desired = Date.UTC(y, m - 1, d, hh, mm, 0);
+  const utc = new Date(guess.getTime() + (desired - asZone));
+  return assertValid(utc, `businessLocalToUtc ${dateStr} ${clock}`);
 }
 
 export function startOfBusinessDay(dateStr: string): Date {
@@ -90,21 +143,33 @@ export function startOfBusinessDay(dateStr: string): Date {
 }
 
 export function endOfBusinessDay(dateStr: string): Date {
-  const base = parse(dateStr, "yyyy-MM-dd", new Date(2000, 0, 1));
-  assertValidDate(base, `endOfBusinessDay ${dateStr}`);
-  const next = format(addDays(base, 1), "yyyy-MM-dd");
-  return businessLocalToUtc(next, "00:00");
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const nextStr = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
+  return businessLocalToUtc(nextStr, "00:00");
 }
 
 export function addMinutesUtc(date: Date, minutes: number): Date {
-  return addMinutes(assertValidDate(date, "addMinutesUtc"), minutes);
+  return new Date(assertValid(date, "addMinutesUtc").getTime() + minutes * 60_000);
 }
 
 /** Weekday 0=Sunday … 6=Saturday in business timezone */
 export function businessDayOfWeek(dateStr: string): number {
   const utc = businessLocalToUtc(dateStr, "12:00");
-  const zoned = toZonedTime(utc, BUSINESS_TIMEZONE);
-  return assertValidDate(zoned, "businessDayOfWeek").getDay();
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIMEZONE,
+    weekday: "short",
+  }).format(utc);
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return map[weekday] ?? utc.getUTCDay();
 }
 
 export function upcomingBusinessDates(
@@ -112,21 +177,23 @@ export function upcomingBusinessDates(
   from = new Date(),
 ): string[] {
   const todayStr = toBusinessDateString(from);
-  const base = parse(todayStr, "yyyy-MM-dd", new Date(2000, 0, 1));
-  assertValidDate(base, "upcomingBusinessDates");
-  return Array.from({ length: count }, (_, i) =>
-    format(addDays(base, i), "yyyy-MM-dd"),
-  );
+  const [y, m, d] = todayStr.split("-").map(Number);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const dt = new Date(Date.UTC(y, m - 1, d + i));
+    out.push(
+      `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`,
+    );
+  }
+  return out;
 }
 
 export function startOfBusinessWeek(date: Date): Date {
-  const zoned = toZonedTime(
-    assertValidDate(date, "startOfBusinessWeek"),
-    BUSINESS_TIMEZONE,
-  );
-  const weekStart = startOfWeek(zoned, { weekStartsOn: 1 });
-  const dateStr = format(startOfDay(weekStart), "yyyy-MM-dd");
-  return businessLocalToUtc(dateStr, "00:00");
+  const dateStr = toBusinessDateString(date);
+  const dow = businessDayOfWeek(dateStr); // 0 Sun … 6 Sat
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const monday = new Date(Date.UTC(y, m - 1, d + mondayOffset));
+  const mondayStr = `${monday.getUTCFullYear()}-${String(monday.getUTCMonth() + 1).padStart(2, "0")}-${String(monday.getUTCDate()).padStart(2, "0")}`;
+  return businessLocalToUtc(mondayStr, "00:00");
 }
-
-export { formatInTimeZone, fromZonedTime, toZonedTime };

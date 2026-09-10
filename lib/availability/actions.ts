@@ -1,12 +1,9 @@
 "use server";
 
 import { getAvailableSlotsForService } from "@/lib/availability/queries";
+import type { SlotDto } from "@/lib/types/slots";
 
-export type SlotDto = {
-  startIso: string;
-  endIso: string;
-  label: string;
-};
+export type { SlotDto };
 
 export async function fetchAvailableSlots(
   serviceId: string,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +32,12 @@ export type AdminBlock = {
   end_time: string;
   reason: string | null;
 };
+
+function shiftDateStr(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
 
 export function AdminCalendarClient({
   initialDate,
@@ -70,19 +75,11 @@ export function AdminCalendarClient({
   );
 
   const weekDates = useMemo(() => {
-    const base = businessLocalToUtc(dateStr, "12:00");
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = addDays(base, i - 3);
-      return toBusinessDateString(d);
-    });
+    return Array.from({ length: 7 }, (_, i) => shiftDateStr(dateStr, i - 3));
   }, [dateStr]);
 
   function shiftDay(delta: number) {
-    const next = format(
-      addDays(businessLocalToUtc(dateStr, "12:00"), delta),
-      "yyyy-MM-dd",
-    );
-    setDateStr(next);
+    setDateStr(shiftDateStr(dateStr, delta));
     setSelected(null);
   }
 
