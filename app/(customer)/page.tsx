@@ -7,6 +7,7 @@ import {
   getWorkingHours,
 } from "@/lib/availability/queries";
 import { fetchAvailableSlots } from "@/lib/availability/actions";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Service, WorkingHours } from "@/lib/types/database";
 
 export default async function BookPage() {
@@ -16,14 +17,19 @@ export default async function BookPage() {
   let workingHours: WorkingHours[] = [];
   let loadError: string | null = null;
 
-  try {
-    [services, workingHours] = await Promise.all([
-      getActiveServices(),
-      getWorkingHours(),
-    ]);
-  } catch {
+  if (!isSupabaseConfigured()) {
     loadError =
-      "Nu pot încărca datele din Supabase. Verifică .env.local și migrările SQL.";
+      "Configurație lipsă: setează variabilele Supabase în Vercel (Environment Variables), apoi Redeploy.";
+  } else {
+    try {
+      [services, workingHours] = await Promise.all([
+        getActiveServices(),
+        getWorkingHours(),
+      ]);
+    } catch {
+      loadError =
+        "Nu pot încărca datele din Supabase. Rulează migrările SQL și verifică cheia anon (eyJ...).";
+    }
   }
 
   return (
@@ -65,7 +71,7 @@ export default async function BookPage() {
         </p>
       )}
 
-      {profile ? (
+      {profile && !loadError ? (
         <BookingWizard
           services={services}
           workingHours={workingHours}
