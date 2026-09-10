@@ -24,7 +24,7 @@ export async function getActiveServices(): Promise<Service[]> {
     .order("duration_minutes", { ascending: true });
 
   if (error) {
-    throw new Error("Nu am putut încărca serviciile.");
+    throw new Error(`Servicii: ${error.message}`);
   }
 
   return (data ?? []) as Service[];
@@ -38,7 +38,7 @@ export async function getWorkingHours(): Promise<WorkingHours[]> {
     .order("day_of_week", { ascending: true });
 
   if (error) {
-    throw new Error("Nu am putut încărca programul.");
+    throw new Error(`Program: ${error.message}`);
   }
 
   return (data ?? []) as WorkingHours[];

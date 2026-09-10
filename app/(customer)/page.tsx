@@ -26,9 +26,11 @@ export default async function BookPage() {
         getActiveServices(),
         getWorkingHours(),
       ]);
-    } catch {
+    } catch (err) {
       loadError =
-        "Nu pot încărca datele din Supabase. Rulează migrările SQL și verifică cheia anon (eyJ...).";
+        err instanceof Error
+          ? err.message
+          : "Nu pot încărca datele din Supabase.";
     }
   }
 
