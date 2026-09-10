@@ -3,8 +3,38 @@
  * Uses Intl only — avoids date-fns / date-fns-tz runtime mismatches on Vercel.
  */
 
-export const BUSINESS_TIMEZONE =
-  process.env.NEXT_PUBLIC_BUSINESS_TIMEZONE ?? "Europe/Bucharest";
+const DEFAULT_TIMEZONE = "Europe/Bucharest";
+
+function sanitizeTimeZone(raw: string | undefined): string {
+  if (!raw) return DEFAULT_TIMEZONE;
+  // Strip quotes/spaces people often paste into Vercel env UI
+  const cleaned = raw.trim().replace(/^["']|["']$/g, "");
+  return cleaned || DEFAULT_TIMEZONE;
+}
+
+function isValidTimeZone(timeZone: string): boolean {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveBusinessTimezone(): string {
+  const candidates = [
+    sanitizeTimeZone(process.env.NEXT_PUBLIC_BUSINESS_TIMEZONE),
+    DEFAULT_TIMEZONE,
+    "Europe/Athens",
+    "UTC",
+  ];
+  for (const tz of candidates) {
+    if (isValidTimeZone(tz)) return tz;
+  }
+  return "UTC";
+}
+
+export const BUSINESS_TIMEZONE = resolveBusinessTimezone();
 
 function assertValid(date: Date, context: string): Date {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
@@ -22,7 +52,7 @@ export function normalizeClock(time: string): string {
   return `${match[1].padStart(2, "0")}:${match[2]}`;
 }
 
-function partsInZone(date: Date, timeZone: string) {
+function partsInZone(date: Date, timeZone: string = BUSINESS_TIMEZONE) {
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     year: "numeric",
