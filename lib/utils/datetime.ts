@@ -123,7 +123,7 @@ export function businessLocalToUtc(dateStr: string, timeStr: string): Date {
   const [hh, mm] = clock.split(":").map(Number);
 
   // Guess UTC by treating the wall time as UTC, then correct by zone offset.
-  let guess = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
   const p = partsInZone(guess, BUSINESS_TIMEZONE);
   const asZone = Date.UTC(
     Number(p.year),
