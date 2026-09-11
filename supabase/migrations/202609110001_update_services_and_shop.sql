@@ -23,4 +23,4 @@ values
   ('Aranjat barbă', 'Aranjarea bărbii', 20, 20, true),
   ('Spălat pe cap', 'Spălat pe cap', 15, 20, true),
   ('Aranjat', 'Aranjat păr', 30, 50, true),
-  ('Tuns Family', 'Tunsoare family', 40, 100, true);
+  ('Tuns Family', 'Tunsoare family', 40, 110, true);
