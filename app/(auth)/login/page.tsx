@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DEMO_ACCOUNTS } from "@/lib/constants/demo";
 import { createClient } from "@/lib/supabase/client";
 
 function LoginForm() {
@@ -37,7 +36,7 @@ function LoginForm() {
           );
         } else if (msg.includes("invalid login")) {
           setError(
-            "Cont inexistent sau parolă greșită. Creează userii în Supabase → Authentication → Users → Add user (bifează Auto Confirm User).",
+            "Cont inexistent sau parolă greșită. Verifică emailul și parola.",
           );
         } else {
           setError(signInError.message);
@@ -50,7 +49,7 @@ function LoginForm() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      let destination = next;
+      let destination = next.startsWith("/admin") ? next : "/";
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -62,7 +61,7 @@ function LoginForm() {
         }
       }
 
-      router.push(destination);
+      router.replace(destination);
       router.refresh();
     } catch (err) {
       setError(
@@ -80,77 +79,30 @@ function LoginForm() {
   }
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={onSubmit} className="space-y-4">
-        <Input
-          label="Email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          label="Parolă"
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button type="submit" fullWidth disabled={loading}>
-          {loading ? "Se conectează…" : "Intră în cont"}
-        </Button>
-      </form>
-
-      <div className="space-y-2 rounded-2xl border border-border bg-surface p-4">
-        <p className="text-sm font-medium">Conturi demo</p>
-        <p className="text-xs text-muted">
-          Nu folosi „sign up” din app acum (rate limit email). Creează userii în
-          Supabase Dashboard → Authentication → Users → Add user, cu{" "}
-          <strong>Auto Confirm User</strong> bifat.
-        </p>
-        <Button
-          fullWidth
-          variant="secondary"
-          disabled={loading}
-          onClick={() => {
-            setEmail(DEMO_ACCOUNTS.admin.email);
-            setPassword(DEMO_ACCOUNTS.admin.password);
-            void signIn(
-              DEMO_ACCOUNTS.admin.email,
-              DEMO_ACCOUNTS.admin.password,
-            );
-          }}
-        >
-          Intră ca Admin
-        </Button>
-        <Button
-          fullWidth
-          variant="secondary"
-          disabled={loading}
-          onClick={() => {
-            setEmail(DEMO_ACCOUNTS.client.email);
-            setPassword(DEMO_ACCOUNTS.client.password);
-            void signIn(
-              DEMO_ACCOUNTS.client.email,
-              DEMO_ACCOUNTS.client.password,
-            );
-          }}
-        >
-          Intră ca Client
-        </Button>
-        <p className="text-xs text-muted">
-          Admin: {DEMO_ACCOUNTS.admin.email} / {DEMO_ACCOUNTS.admin.password}
-          <br />
-          Client: {DEMO_ACCOUNTS.client.email} /{" "}
-          {DEMO_ACCOUNTS.client.password}
-        </p>
-      </div>
-    </div>
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Input
+        label="Email"
+        type="email"
+        name="email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Input
+        label="Parolă"
+        type="password"
+        name="password"
+        autoComplete="current-password"
+        required
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <Button type="submit" fullWidth disabled={loading}>
+        {loading ? "Se conectează…" : "Intră în cont"}
+      </Button>
+    </form>
   );
 }
 

@@ -74,6 +74,30 @@ export function AdminCalendarClient({
     [blocks, dateStr],
   );
 
+  type DayItem =
+    | { kind: "appointment"; start: string; appointment: AdminAppointment }
+    | { kind: "block"; start: string; block: AdminBlock };
+
+  const dayTimeline = useMemo(() => {
+    const items: DayItem[] = [
+      ...dayAppointments.map(
+        (appointment): DayItem => ({
+          kind: "appointment",
+          start: appointment.start_time,
+          appointment,
+        }),
+      ),
+      ...dayBlocks.map(
+        (block): DayItem => ({
+          kind: "block",
+          start: block.start_time,
+          block,
+        }),
+      ),
+    ];
+    return items.sort((a, b) => a.start.localeCompare(b.start));
+  }, [dayAppointments, dayBlocks]);
+
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => shiftDateStr(dateStr, i - 3));
   }, [dateStr]);
@@ -184,59 +208,61 @@ export function AdminCalendarClient({
       {error ? <p className="text-sm text-danger">{error}</p> : null}
 
       <div className="space-y-2">
-        {dayBlocks.map((block) => (
-          <div
-            key={block.id}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-[#efe8df] px-4 py-3"
-          >
-            <div>
-              <p className="font-medium">
-                {toBusinessTimeString(new Date(block.start_time))} –{" "}
-                {toBusinessTimeString(new Date(block.end_time))}
-              </p>
-              <p className="text-sm text-muted">{block.reason || "Blocat"}</p>
-            </div>
-            <Button
-              variant="ghost"
-              className="min-h-10 text-danger"
-              disabled={pending}
-              onClick={() => {
-                startTransition(async () => {
-                  await deleteBlockedTime(block.id);
-                  window.location.reload();
-                });
-              }}
-            >
-              Șterge
-            </Button>
-          </div>
-        ))}
-
-        {dayAppointments.length === 0 && dayBlocks.length === 0 ? (
+        {dayTimeline.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-muted">
             Nicio programare în această zi.
           </p>
         ) : null}
 
-        {dayAppointments.map((appt) => (
-          <button
-            key={appt.id}
-            type="button"
-            onClick={() => setSelected(appt)}
-            className="w-full rounded-2xl border border-border bg-accent px-4 py-3 text-left text-white"
-          >
-            <p className="font-medium">
-              {toBusinessTimeString(new Date(appt.start_time))} –{" "}
-              {toBusinessTimeString(new Date(appt.end_time))}
-            </p>
-            <p className="text-sm text-white/85">
-              {appt.customer?.full_name ?? "Client"}
-            </p>
-            <p className="text-sm text-white/75">
-              {appt.service?.name ?? "Serviciu"}
-            </p>
-          </button>
-        ))}
+        {dayTimeline.map((item) =>
+          item.kind === "block" ? (
+            <div
+              key={`block-${item.block.id}`}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-[#efe8df] px-4 py-3"
+            >
+              <div>
+                <p className="font-medium">
+                  {toBusinessTimeString(new Date(item.block.start_time))} –{" "}
+                  {toBusinessTimeString(new Date(item.block.end_time))}
+                </p>
+                <p className="text-sm text-muted">
+                  {item.block.reason || "Blocat"}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="min-h-10 text-danger"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    await deleteBlockedTime(item.block.id);
+                    window.location.reload();
+                  });
+                }}
+              >
+                Șterge
+              </Button>
+            </div>
+          ) : (
+            <button
+              key={`appt-${item.appointment.id}`}
+              type="button"
+              onClick={() => setSelected(item.appointment)}
+              className="w-full rounded-2xl border border-border bg-accent px-4 py-3 text-left text-white"
+            >
+              <p className="font-medium">
+                {toBusinessTimeString(new Date(item.appointment.start_time))} –{" "}
+                {toBusinessTimeString(new Date(item.appointment.end_time))}
+              </p>
+              <p className="text-sm text-white/85">
+                {item.appointment.customer?.full_name ?? "Client"}
+              </p>
+              <p className="text-sm text-white/75">
+                {item.appointment.service?.name ?? "Serviciu"}
+              </p>
+            </button>
+          ),
+        )}
       </div>
 
       {selected ? (
