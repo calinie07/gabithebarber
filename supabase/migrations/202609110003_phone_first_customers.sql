@@ -65,6 +65,31 @@ alter table public.appointments
   foreign key (customer_id) references public.customers (id) on delete restrict;
 
 -- Notifications: related_customer_id should point at customers
+-- Clear / backfill orphans BEFORE adding the FK.
+insert into public.customers (id, full_name, phone, auth_user_id)
+select
+  p.id,
+  coalesce(nullif(trim(p.full_name), ''), 'Client'),
+  coalesce(
+    nullif(trim(p.phone), ''),
+    '+40temp-' || replace(p.id::text, '-', '')
+  ),
+  case when p.role = 'customer' then p.id else null end
+from public.admin_notifications n
+join public.profiles p on p.id = n.related_customer_id
+where n.related_customer_id is not null
+  and not exists (
+    select 1 from public.customers c where c.id = n.related_customer_id
+  )
+on conflict (id) do nothing;
+
+update public.admin_notifications n
+set related_customer_id = null
+where n.related_customer_id is not null
+  and not exists (
+    select 1 from public.customers c where c.id = n.related_customer_id
+  );
+
 alter table public.admin_notifications
   drop constraint if exists admin_notifications_related_customer_id_fkey;
 
