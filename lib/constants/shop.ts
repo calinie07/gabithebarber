@@ -1,13 +1,12 @@
 /**
- * Placeholder shop info used until shop_settings is loaded from the DB.
- * Prefer reading from `shop_settings` at runtime.
+ * Fallback shop info used until shop_settings is loaded from the DB.
  */
 export const SHOP_PLACEHOLDER = {
   name: "Gabi Barber",
   phone: "+40721234567",
   phoneDisplay: "+40 721 234 567",
-  address: "Strada Exemplu 12, București",
-  mapsQuery: "Strada Exemplu 12, București",
+  address: "Strada Transilvaniei nr. 14, bl. A12, clădirea SWEN, Aiud",
+  mapsQuery: "Strada Transilvaniei 14, clădirea SWEN, Aiud",
   email: "contact@gabibarber.ro",
 } as const;
 
