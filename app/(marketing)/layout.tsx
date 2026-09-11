@@ -13,7 +13,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${landingDisplay.variable} min-h-dvh w-full bg-[#0c0b0a]`}>
+    <div className={`${landingDisplay.variable} min-h-dvh w-full bg-black`}>
       {children}
     </div>
   );
