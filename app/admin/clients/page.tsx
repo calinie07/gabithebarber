@@ -5,11 +5,12 @@ import {
   formatBusinessDate,
   toBusinessTimeString,
 } from "@/lib/utils/datetime";
+import { formatPhoneDisplay } from "@/lib/utils/phone";
 
 type ClientRow = {
   id: string;
   full_name: string;
-  phone: string | null;
+  phone: string;
   booking_count: number;
   last_booking: string | null;
 };
@@ -17,10 +18,9 @@ type ClientRow = {
 export default async function AdminClientsPage() {
   const supabase = await createClient();
 
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, phone, role")
-    .eq("role", "customer")
+  const { data: customers } = await supabase
+    .from("customers")
+    .select("id, full_name, phone")
     .order("full_name", { ascending: true });
 
   const { data: appointments } = await supabase
@@ -28,12 +28,14 @@ export default async function AdminClientsPage() {
     .select("customer_id, start_time, status")
     .order("start_time", { ascending: false });
 
-  const rows: ClientRow[] = (profiles ?? []).map((profile) => {
-    const own = (appointments ?? []).filter((a) => a.customer_id === profile.id);
+  const rows: ClientRow[] = (customers ?? []).map((customer) => {
+    const own = (appointments ?? []).filter(
+      (a) => a.customer_id === customer.id,
+    );
     return {
-      id: profile.id,
-      full_name: profile.full_name,
-      phone: profile.phone,
+      id: customer.id,
+      full_name: customer.full_name,
+      phone: customer.phone,
       booking_count: own.length,
       last_booking: own[0]?.start_time ?? null,
     };
@@ -43,12 +45,14 @@ export default async function AdminClientsPage() {
     <div className="space-y-4">
       <header>
         <h2 className="font-display text-2xl">Clienți</h2>
-        <p className="text-sm text-muted">{rows.length} clienți înregistrați</p>
+        <p className="text-sm text-muted">
+          {rows.length} clienți · identificați după telefon
+        </p>
       </header>
 
       {rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-surface px-4 py-16 text-center text-sm text-muted">
-          Niciun client încă.
+          Niciun client încă. Folosește + pe calendar pentru a adăuga.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -60,13 +64,14 @@ export default async function AdminClientsPage() {
               <div>
                 <p className="text-lg font-medium">{client.full_name}</p>
                 <p className="text-sm text-muted">
-                  {client.booking_count} rezervări
+                  {formatPhoneDisplay(client.phone)} · {client.booking_count}{" "}
+                  rezervări
                   {client.last_booking
                     ? ` · ultima ${formatBusinessDate(new Date(client.last_booking), "d MMM")} ${toBusinessTimeString(new Date(client.last_booking))}`
                     : ""}
                 </p>
               </div>
-              {client.phone ? (
+              {!client.phone.startsWith("+40temp-") ? (
                 <div className="grid grid-cols-3 gap-2">
                   <a
                     href={telHref(client.phone)}

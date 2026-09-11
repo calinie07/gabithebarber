@@ -6,6 +6,7 @@ import {
   formatBusinessDate,
   toBusinessTimeString,
 } from "@/lib/utils/datetime";
+import { formatPhoneDisplay } from "@/lib/utils/phone";
 
 export default async function AdminClientDetailPage({
   params,
@@ -16,12 +17,12 @@ export default async function AdminClientDetailPage({
   const supabase = await createClient();
 
   const { data: client } = await supabase
-    .from("profiles")
-    .select("id, full_name, phone, role")
+    .from("customers")
+    .select("id, full_name, phone")
     .eq("id", id)
     .maybeSingle();
 
-  if (!client || client.role !== "customer") {
+  if (!client) {
     notFound();
   }
 
@@ -40,10 +41,12 @@ export default async function AdminClientDetailPage({
       </Link>
       <header>
         <h2 className="font-display text-2xl">{client.full_name}</h2>
-        <p className="text-sm text-muted">{client.phone || "Fără telefon"}</p>
+        <p className="text-sm text-muted">
+          {formatPhoneDisplay(client.phone)}
+        </p>
       </header>
 
-      {client.phone ? (
+      {!client.phone.startsWith("+40temp-") ? (
         <div className="grid grid-cols-3 gap-2">
           <a
             href={telHref(client.phone)}
@@ -84,7 +87,10 @@ export default async function AdminClientDetailPage({
               >
                 <p className="font-medium">{service?.name ?? "Serviciu"}</p>
                 <p className="text-sm text-muted">
-                  {formatBusinessDate(new Date(booking.start_time), "d MMM yyyy")}{" "}
+                  {formatBusinessDate(
+                    new Date(booking.start_time),
+                    "d MMM yyyy",
+                  )}{" "}
                   · {toBusinessTimeString(new Date(booking.start_time))}
                 </p>
                 <p className="text-xs capitalize text-muted">{booking.status}</p>

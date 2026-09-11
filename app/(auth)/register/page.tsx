@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { normalizePhone } from "@/lib/utils/phone";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,6 +24,13 @@ export default function RegisterPage() {
     setError(null);
     setInfo(null);
 
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      setError("Introdu un număr de telefon valid (ex: 07xxxxxxxx).");
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -31,7 +39,7 @@ export default function RegisterPage() {
         options: {
           data: {
             full_name: fullName,
-            phone,
+            phone: normalized,
           },
         },
       });
@@ -69,7 +77,10 @@ export default function RegisterPage() {
           Gabi Barber
         </p>
         <h1 className="font-display text-3xl">Cont nou</h1>
-        <p className="text-muted">Creează-ți contul de client.</p>
+        <p className="text-muted">
+          Telefonul te identifică la salon. Emailul e doar pentru autentificare
+          în app.
+        </p>
       </header>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -84,13 +95,13 @@ export default function RegisterPage() {
           label="Telefon"
           name="phone"
           type="tel"
-          placeholder="+40…"
+          placeholder="07…"
           required
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
         <Input
-          label="Email"
+          label="Email (doar pentru login în app)"
           type="email"
           name="email"
           autoComplete="email"

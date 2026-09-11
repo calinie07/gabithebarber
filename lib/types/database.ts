@@ -16,6 +16,15 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface Customer {
+  id: string;
+  full_name: string;
+  phone: string;
+  auth_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -55,7 +64,7 @@ export interface Appointment {
 
 export interface AppointmentWithRelations extends Appointment {
   service: Pick<Service, "id" | "name" | "duration_minutes" | "price">;
-  customer?: Pick<Profile, "id" | "full_name" | "phone">;
+  customer?: Pick<Customer, "id" | "full_name" | "phone">;
 }
 
 export interface ShopSettings {

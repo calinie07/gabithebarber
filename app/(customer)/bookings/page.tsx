@@ -10,12 +10,20 @@ export default async function BookingsPage() {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
 
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("id")
+    .or(`auth_user_id.eq.${profile.id},id.eq.${profile.id}`)
+    .maybeSingle();
+
+  const customerId = customer?.id ?? profile.id;
+
   const { data } = await supabase
     .from("appointments")
     .select(
       "id, start_time, end_time, status, service:services(name, duration_minutes, price)",
     )
-    .eq("customer_id", profile.id)
+    .eq("customer_id", customerId)
     .order("start_time", { ascending: false });
 
   const bookings = (data ?? []) as unknown as BookingCardData[];
