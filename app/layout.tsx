@@ -16,10 +16,10 @@ const display = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "Gabi Barber",
-    template: "%s · Gabi Barber",
+    default: "Gabi the Barber",
+    template: "%s · Gabi the Barber",
   },
-  description: "Programează-te online la Gabi Barber",
+  description: "Tunsoare precisă în Aiud — rezervă online la Gabi the Barber",
 };
 
 export const viewport: Viewport = {

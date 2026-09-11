@@ -38,7 +38,7 @@ export default async function BookPage() {
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.2em] text-muted">
-          Gabi Barber
+          Gabi the Barber
         </p>
         <h1 className="font-display text-3xl leading-tight">Programează-te</h1>
         <p className="text-muted">
@@ -57,7 +57,7 @@ export default async function BookPage() {
           <p className="text-sm text-muted">
             Autentifică-te ca să poți confirma o rezervare.
           </p>
-          <Link href="/login">
+          <Link href="/login?next=/book">
             <Button fullWidth>Autentifică-te</Button>
           </Link>
           <Link href="/register">
@@ -68,8 +68,7 @@ export default async function BookPage() {
         </section>
       ) : (
         <p className="text-sm text-muted">
-          Salut, <strong>{profile.full_name || "client"}</strong>
-          {profile.role === "admin" ? " (admin)" : ""}.
+          Salut, <strong>{profile.full_name || "client"}</strong>.
         </p>
       )}
 

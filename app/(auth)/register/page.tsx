@@ -58,7 +58,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/");
+      router.push("/book");
       router.refresh();
     } catch (err) {
       setError(
@@ -74,7 +74,7 @@ export default function RegisterPage() {
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.2em] text-muted">
-          Gabi Barber
+          Gabi the Barber
         </p>
         <h1 className="font-display text-3xl">Cont nou</h1>
         <p className="text-muted">

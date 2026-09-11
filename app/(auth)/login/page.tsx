@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/book";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +49,11 @@ function LoginForm() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      let destination = next.startsWith("/admin") ? next : "/";
+      let destination =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/book";
+      if (destination === "/") {
+        destination = "/book";
+      }
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -111,7 +115,7 @@ export default function LoginPage() {
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.2em] text-muted">
-          Gabi Barber
+          Gabi the Barber
         </p>
         <h1 className="font-display text-3xl">Autentificare</h1>
         <p className="text-muted">Intră în cont pentru a rezerva.</p>
